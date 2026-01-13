@@ -4,8 +4,8 @@ import com.service.todolist.api.CreateTodoItemRequest
 import com.service.todolist.api.UpdateDescriptionRequest
 import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
-import com.service.todolist.model.throwPastDueException
-import com.service.todolist.model.trySetPastDue
+import com.service.todolist.model.assertStillDoable
+import com.service.todolist.model.isNotDoneNowDue
 import com.service.todolist.repository.TodoItemRepository
 import org.springframework.data.domain.Sort
 import org.springframework.scheduling.annotation.Scheduled
@@ -31,7 +31,10 @@ class TodoItemService(
 			dueDatetime = request.dueDatetime,
 			doneDatetime = null,
 		)
-		item.trySetPastDue(Instant.now(clock))
+		val isTodoNotDoneNowDue = item.isNotDoneNowDue(Instant.now(clock))
+		if (isTodoNotDoneNowDue) {
+			item.status = TodoStatus.PAST_DUE
+		}
 		val saved = repository.save(item)
 		return repository.findById(saved.id ?: 0).orElse(saved)
 	}
@@ -39,10 +42,7 @@ class TodoItemService(
 	@Transactional
 	fun updateDescription(id: Long, request: UpdateDescriptionRequest): TodoItem {
 		val item = getItemOrThrow(id)
-		val isPastDue = item.trySetPastDue(Instant.now(clock))
-		if (isPastDue) {
-			item.throwPastDueException()
-		}
+		item.assertStillDoable(clock)
 		item.description = request.description
 		return repository.save(item)
 	}
@@ -51,10 +51,7 @@ class TodoItemService(
 	fun markDone(id: Long): TodoItem {
 		val now = Instant.now(clock)
 		val item = getItemOrThrow(id)
-		val isPastDue = item.trySetPastDue(Instant.now(clock))
-		if (isPastDue) {
-			item.throwPastDueException()
-		}
+		item.assertStillDoable(clock)
 		item.status = TodoStatus.DONE
 		item.doneDatetime = now
 		return repository.save(item)
@@ -62,12 +59,9 @@ class TodoItemService(
 
 	@Transactional
 	fun markNotDone(id: Long): TodoItem {
-		updatePastDue()
+		updatePastDueTodos()
 		val item = getItemOrThrow(id)
-		val isPastDue = item.trySetPastDue(Instant.now(clock))
-		if (isPastDue) {
-			item.throwPastDueException()
-		}
+		item.assertStillDoable(clock)
 		item.status = TodoStatus.NOT_DONE
 		item.doneDatetime = null
 		val saved = repository.save(item)
@@ -76,10 +70,11 @@ class TodoItemService(
 
 	@Transactional
 	fun getItem(id: Long): TodoItem {
-		updatePastDue()
+		updatePastDueTodos()
 		val item = getItemOrThrow(id)
-		val isPastDue = item.trySetPastDue(Instant.now(clock))
-		if (isPastDue) {
+		val isTodoNotDoneNowDue = item.isNotDoneNowDue(Instant.now(clock))
+		if (isTodoNotDoneNowDue) {
+			item.status = TodoStatus.PAST_DUE
 			return repository.save(item)
 		}
 		return item
@@ -87,7 +82,7 @@ class TodoItemService(
 
 	@Transactional
 	fun listItems(includeAll: Boolean): List<TodoItem> {
-		updatePastDue()
+		updatePastDueTodos()
 		val sort = Sort.by("creationDatetime").ascending()
 		return if (includeAll) {
 			repository.findAll(sort)
@@ -98,7 +93,7 @@ class TodoItemService(
 
 	@Transactional
 	@Scheduled(fixedDelayString = "PT1M")
-	fun updatePastDue() {
+	fun updatePastDueTodos() {
 		repository.markPastDue(Instant.now(clock))
 	}
 

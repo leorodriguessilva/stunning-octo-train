@@ -2,12 +2,15 @@ package com.service.todolist.service
 
 import com.service.todolist.api.CreateTodoItemRequest
 import com.service.todolist.api.UpdateDescriptionRequest
+import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
 import com.service.todolist.repository.TodoItemRepository
 import io.mockk.every
 import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
@@ -16,6 +19,7 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
+import org.springframework.data.domain.Sort
 import org.springframework.web.server.ResponseStatusException
 import java.time.Clock
 import java.time.Instant
@@ -24,6 +28,33 @@ import java.time.ZoneOffset
 @DataJpaTest
 @Import(TodoItemService::class, TodoItemServiceTest.ClockTestConfig::class)
 class TodoItemServiceTest {
+
+	@TestConfiguration
+	class ClockTestConfig {
+		@Bean
+		@Primary
+		fun testClockHolder(): TestClockHolder = TestClockHolder(Instant.parse("2024-01-01T00:00:00Z"))
+
+		@Bean
+		@Primary
+		fun clock(clockHolder: TestClockHolder): Clock {
+			val clock = mockk<Clock>()
+			every { clock.instant() } answers { clockHolder.currentInstant }
+			every { clock.getZone() } returns ZoneOffset.UTC
+			every { clock.zone } returns ZoneOffset.UTC
+			every { clock.withZone(any()) } returns clock
+			return clock
+		}
+	}
+
+	class TestClockHolder(
+		var currentInstant: Instant,
+	) {
+		fun setInstant(instant: Instant) {
+			currentInstant = instant
+		}
+	}
+
 	@Autowired
 	private lateinit var service: TodoItemService
 
@@ -32,6 +63,7 @@ class TodoItemServiceTest {
 
 	@Autowired
 	private lateinit var clockHolder: TestClockHolder
+
 
 	@AfterEach
 	fun tearDown() {
@@ -188,23 +220,6 @@ class TodoItemServiceTest {
 	}
 
 	@Test
-	fun `given item past due when status check runs then status becomes past due`() {
-		val dueDatetime = clockHolder.currentInstant.plusSeconds(30)
-		val item = service.createItem(
-			CreateTodoItemRequest(
-				description = "Submit report",
-				dueDatetime = dueDatetime,
-			),
-		)
-
-		clockHolder.setInstant(dueDatetime.plusSeconds(30))
-		service.updatePastDue()
-
-		val refreshed = repository.findById(item.id ?: 0).orElseThrow()
-		assertThat(refreshed.status).isEqualTo(TodoStatus.PAST_DUE)
-	}
-
-	@Test
 	fun `given past due item when updating then throws an error`() {
 		val item = service.createItem(
 			CreateTodoItemRequest(
@@ -223,29 +238,47 @@ class TodoItemServiceTest {
 		assertThat(exception.message).contains("past due")
 	}
 
-	@TestConfiguration
-	class ClockTestConfig {
-		@Bean
-		@Primary
-		fun testClockHolder(): TestClockHolder = TestClockHolder(Instant.parse("2024-01-01T00:00:00Z"))
+	@Nested
+	internal inner class MarkAsPastDueCronJobTest {
 
-		@Bean
-		@Primary
-		fun clock(clockHolder: TestClockHolder): Clock {
-			val clock = mockk<Clock>()
-			every { clock.instant() } answers { clockHolder.currentInstant }
-			every { clock.getZone() } returns ZoneOffset.UTC
-			every { clock.zone } returns ZoneOffset.UTC
-			every { clock.withZone(any()) } returns clock
-			return clock
+		@BeforeEach
+		fun setup() {
+			repository.save(
+				TodoItem(
+					description = "Past due task",
+					status = TodoStatus.NOT_DONE,
+					creationDatetime = clockHolder.currentInstant.minusSeconds(7200),
+					dueDatetime = clockHolder.currentInstant.minusSeconds(3600),
+				),
+			)
+			repository.save(
+				TodoItem(
+					description = "Not due task",
+					status = TodoStatus.NOT_DONE,
+					creationDatetime = clockHolder.currentInstant.minusSeconds(7200),
+					dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
+				),
+			)
+			repository.save(
+				TodoItem(
+					description = "Done before due time task",
+					status = TodoStatus.DONE,
+					creationDatetime = clockHolder.currentInstant.minusSeconds(7200),
+					dueDatetime = clockHolder.currentInstant.minusSeconds(3600),
+				),
+			)
 		}
-	}
-}
 
-class TestClockHolder(
-	var currentInstant: Instant,
-) {
-	fun setInstant(instant: Instant) {
-		currentInstant = instant
+		@Test
+		fun `given item past due when status check runs then status becomes past due`() {
+			service.updatePastDueTodos()
+
+			val allPastDue = repository.findByStatus(TodoStatus.PAST_DUE, Sort.unsorted())
+			assertThat(allPastDue.size).isEqualTo(1)
+			val expectedPastDue = allPastDue.first()
+			assertThat(expectedPastDue).isNotNull
+			assertThat(expectedPastDue.status).isEqualTo(TodoStatus.PAST_DUE)
+		}
+
 	}
 }

@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.time.Clock
 import java.time.Instant
 
 @Entity
@@ -35,16 +36,11 @@ class TodoItem(
 	var doneDatetime: Instant? = null,
 )
 
-fun TodoItem.trySetPastDue(now: Instant): Boolean {
-	return if (this.status == TodoStatus.NOT_DONE && this.dueDatetime < now) {
-		this.status = TodoStatus.PAST_DUE
-		true
-	} else {
-		false
+fun TodoItem.isNotDoneNowDue(now: Instant) = this.status == TodoStatus.NOT_DONE && this.dueDatetime < now
+
+fun TodoItem.assertStillDoable(clock: Clock) {
+	val isTodoNotDoneNowDue = isNotDoneNowDue(Instant.now(clock)) || status == TodoStatus.PAST_DUE
+	if (isTodoNotDoneNowDue) {
+		throw PastDueItemException("Cannot modify past due item with id ${this.id}")
 	}
 }
-
-fun TodoItem.throwPastDueException(): Nothing {
-	throw PastDueItemException("Cannot modify past due item with id ${this.id}")
-}
-
