@@ -298,6 +298,7 @@ class TodoItemServiceTest {
 			val expectedPastDue = allPastDue.first()
 			assertThat(expectedPastDue).isNotNull
 			assertThat(expectedPastDue.status).isEqualTo(TodoStatus.PAST_DUE)
+			assertThat(expectedPastDue.doneDatetime).isEqualTo(clockHolder.currentInstant)
 		}
 
 	}
