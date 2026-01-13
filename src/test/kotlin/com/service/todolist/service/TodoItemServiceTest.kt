@@ -1,8 +1,8 @@
-package com.service.todolist
+package com.service.todolist.service
 
 import org.junit.jupiter.api.Test
 
-class TodoItemUseCaseTest {
+class TodoItemServiceTest {
 	@Test
 	fun `given new item when created then it is stored`() {
 	}
@@ -20,7 +20,11 @@ class TodoItemUseCaseTest {
 	}
 
 	@Test
-	fun `given item exists when fetched then details are returned`() {
+	fun `given item exists when fetched by id then details are returned`() {
+	}
+
+	@Test
+	fun `given item does not exists when fetched by id then throws an error`() {
 	}
 
 	@Test
@@ -36,6 +40,6 @@ class TodoItemUseCaseTest {
 	}
 
 	@Test
-	fun `given past due item when updating then change is rejected`() {
+	fun `given past due item when updating then throws an error`() {
 	}
 }
