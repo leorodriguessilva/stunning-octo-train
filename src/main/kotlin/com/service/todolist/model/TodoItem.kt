@@ -1,5 +1,6 @@
 package com.service.todolist.model
 
+import com.service.todolist.service.PastDueItemException
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -33,3 +34,17 @@ class TodoItem(
 	@Column
 	var doneDatetime: Instant? = null,
 )
+
+fun TodoItem.trySetPastDue(now: Instant): Boolean {
+	return if (this.status == TodoStatus.NOT_DONE && this.dueDatetime < now) {
+		this.status = TodoStatus.PAST_DUE
+		true
+	} else {
+		false
+	}
+}
+
+fun TodoItem.throwPastDueException(): Nothing {
+	throw PastDueItemException("Cannot modify past due item with id ${this.id}")
+}
+
