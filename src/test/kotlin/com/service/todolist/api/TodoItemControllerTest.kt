@@ -5,6 +5,7 @@ import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
 import com.service.todolist.service.PastDueItemException
 import com.service.todolist.service.TodoItemService
+import jakarta.persistence.EntityNotFoundException
 import org.hamcrest.Matchers.hasKey
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.Nested
@@ -13,13 +14,11 @@ import org.mockito.BDDMockito.given
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.put
-import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 
 @WebMvcTest(TodoItemController::class)
@@ -89,7 +88,8 @@ class TodoItemControllerTest {
 
 	@Test
 	fun `given missing item when fetching by id then returns not found`() {
-		given(service.findById(9999)).willThrow(ResponseStatusException(HttpStatus.NOT_FOUND))
+		given(service.findById(9999))
+			.willThrow(EntityNotFoundException("Todo item 9999 not found"))
 		mockMvc.get("/items/9999")
 			.andExpect {
 				status { isNotFound() }
@@ -290,6 +290,63 @@ class TodoItemControllerTest {
 			}
 				.andExpect {
 					status { isConflict() }
+					jsonPath("$", hasKey("error"))
+				}
+		}
+
+		@Test
+		fun `given missing item when marking done then returns not found`() {
+			given(service.markDoneById(7)).willThrow(EntityNotFoundException("Todo item 7 not found"))
+
+			mockMvc.put("/items/7/done")
+				.andExpect {
+					status { isNotFound() }
+					jsonPath("$", hasKey("error"))
+				}
+		}
+
+		@Test
+		fun `given missing item when marking not done then returns not found`() {
+			given(service.markNotDoneById(8)).willThrow(EntityNotFoundException("Todo item 8 not found"))
+
+			mockMvc.put("/items/8/not-done")
+				.andExpect {
+					status { isNotFound() }
+					jsonPath("$", hasKey("error"))
+				}
+		}
+
+		@Test
+		fun `given missing item when updating description then returns not found`() {
+			val request = UpdateDescriptionRequest("Updated description")
+			given(service.updateDescriptionById(9, request))
+				.willThrow(EntityNotFoundException("Todo item 9 not found"))
+
+			mockMvc.put("/items/9/description") {
+				contentType = MediaType.APPLICATION_JSON
+				content = objectMapper.writeValueAsString(request)
+			}
+				.andExpect {
+					status { isNotFound() }
+					jsonPath("$", hasKey("error"))
+				}
+		}
+
+		@Test
+		fun `given unexpected error when posting item then returns server error`() {
+			val request = CreateTodoItemRequest(
+				description = "Write documentation",
+				dueDatetime = Instant.parse("2024-01-01T12:00:00Z"),
+			)
+			given(service.createItem(request))
+				.willThrow(IllegalStateException("Unexpected error"))
+
+			mockMvc.post("/items") {
+				contentType = MediaType.APPLICATION_JSON
+				content = objectMapper.writeValueAsString(request)
+			}
+				.andExpect {
+					status { isInternalServerError() }
 					jsonPath("$", hasKey("error"))
 				}
 		}

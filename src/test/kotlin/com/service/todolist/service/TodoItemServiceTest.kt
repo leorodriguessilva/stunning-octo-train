@@ -7,6 +7,7 @@ import com.service.todolist.model.TodoStatus
 import com.service.todolist.repository.TodoItemRepository
 import io.mockk.every
 import io.mockk.mockk
+import jakarta.persistence.EntityNotFoundException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -168,15 +169,6 @@ class TodoItemServiceTest {
 	}
 
 	@Test
-	fun `given item does not exists when fetched by id then throws an error`() {
-		val exception = assertThrows<ResponseStatusException> {
-			service.findById(9999)
-		}
-
-		assertThat(exception.statusCode.value()).isEqualTo(404)
-	}
-
-	@Test
 	fun `given past due item when updating then throws an error`() {
 		val item = service.createItem(
 			CreateTodoItemRequest(
@@ -193,6 +185,24 @@ class TodoItemServiceTest {
 		}
 
 		assertThat(exception.message).contains("past due")
+	}
+
+	@Test
+	fun `given item does not exist when fetched by id then throws an error`() {
+		val exception = assertThrows<EntityNotFoundException> {
+			service.findById(9999)
+		}
+
+		assertThat(exception.message).contains("Todo item")
+	}
+
+	@Test
+	fun `given missing item when updating description then throws an error`() {
+		val exception = assertThrows<EntityNotFoundException> {
+			service.updateDescriptionById(1234, UpdateDescriptionRequest("Updated"))
+		}
+
+		assertThat(exception.message).contains("Todo item")
 	}
 
 	@Nested
