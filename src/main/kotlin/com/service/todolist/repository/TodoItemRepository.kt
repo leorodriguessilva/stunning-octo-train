@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param
 import java.time.Instant
 
 interface TodoItemRepository : JpaRepository<TodoItem, Long> {
-	fun findByStatus(status: TodoStatus, sort: Sort): List<TodoItem>
+	fun findByStatus(status: TodoStatus, sort: Sort = Sort.by("creationDatetime").ascending()): List<TodoItem>
 
 	@Modifying
 	@Query(

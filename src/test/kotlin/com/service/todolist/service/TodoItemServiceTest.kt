@@ -50,8 +50,8 @@ class TodoItemServiceTest {
 	class TestClockHolder(
 		var currentInstant: Instant,
 	) {
-		fun setInstant(instant: Instant) {
-			currentInstant = instant
+		fun setInstant(newInstant: Instant) {
+			currentInstant = newInstant
 		}
 	}
 
@@ -96,7 +96,7 @@ class TodoItemServiceTest {
 			),
 		)
 
-		val updated = service.updateDescription(
+		val updated = service.updateDescriptionById(
 			item.id ?: 0,
 			UpdateDescriptionRequest("Updated"),
 		)
@@ -113,7 +113,7 @@ class TodoItemServiceTest {
 			),
 		)
 
-		val updated = service.markDone(item.id ?: 0)
+		val updated = service.markDoneById(item.id ?: 0)
 
 		assertThat(updated.status).isEqualTo(TodoStatus.DONE)
 		assertThat(updated.doneDatetime).isNotNull
@@ -128,9 +128,9 @@ class TodoItemServiceTest {
 			),
 		)
 
-		service.markDone(item.id ?: 0)
+		service.markDoneById(item.id ?: 0)
 
-		val updated = service.markNotDone(item.id ?: 0)
+		val updated = service.markNotDoneById(item.id ?: 0)
 
 		assertThat(updated.status).isEqualTo(TodoStatus.NOT_DONE)
 		assertThat(updated.doneDatetime).isNull()
@@ -145,78 +145,35 @@ class TodoItemServiceTest {
 			),
 		)
 
-		val fetched = service.getItem(item.id ?: 0)
+		val fetched = service.findById(item.id ?: 0)
 
 		assertThat(fetched.id).isEqualTo(item.id)
 		assertThat(fetched.description).isEqualTo("Prepare slides")
 	}
 
 	@Test
+	fun `given item exists when fetched by id and past due then details are returned with past due status`() {
+		val item = service.createItem(
+			CreateTodoItemRequest(
+				description = "Prepare slides",
+				dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
+			),
+		)
+
+		clockHolder.setInstant(clockHolder.currentInstant.plusSeconds(7200))
+		val fetched = service.findById(item.id ?: 0)
+
+		assertThat(fetched.id).isEqualTo(item.id)
+		assertThat(fetched.status).isEqualTo(TodoStatus.PAST_DUE)
+	}
+
+	@Test
 	fun `given item does not exists when fetched by id then throws an error`() {
 		val exception = assertThrows<ResponseStatusException> {
-			service.getItem(9999)
+			service.findById(9999)
 		}
 
 		assertThat(exception.statusCode.value()).isEqualTo(404)
-	}
-
-	@Test
-	fun `given mixed items when listing not done then only not done returned`() {
-		service.createItem(
-			CreateTodoItemRequest(
-				description = "Not done",
-				dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
-			),
-		)
-
-		val done = service.createItem(
-			CreateTodoItemRequest(
-				description = "Done",
-				dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
-			),
-		)
-		service.markDone(done.id ?: 0)
-
-		service.createItem(
-			CreateTodoItemRequest(
-				description = "Past due",
-				dueDatetime = clockHolder.currentInstant.minusSeconds(60),
-			),
-		)
-
-		val items = service.listItems(includeAll = false)
-
-		assertThat(items).hasSize(1)
-		assertThat(items.first().status).isEqualTo(TodoStatus.NOT_DONE)
-	}
-
-	@Test
-	fun `given mixed items when listing all then all returned`() {
-		service.createItem(
-			CreateTodoItemRequest(
-				description = "Not done",
-				dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
-			),
-		)
-
-		val done = service.createItem(
-			CreateTodoItemRequest(
-				description = "Done",
-				dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
-			),
-		)
-		service.markDone(done.id ?: 0)
-
-		service.createItem(
-			CreateTodoItemRequest(
-				description = "Past due",
-				dueDatetime = clockHolder.currentInstant.minusSeconds(60),
-			),
-		)
-
-		val items = service.listItems(includeAll = true)
-
-		assertThat(items).hasSize(3)
 	}
 
 	@Test
@@ -229,13 +186,66 @@ class TodoItemServiceTest {
 		)
 
 		val exception = assertThrows<PastDueItemException> {
-			service.updateDescription(
+			service.updateDescriptionById(
 				item.id ?: 0,
 				UpdateDescriptionRequest("New description"),
 			)
 		}
 
 		assertThat(exception.message).contains("past due")
+	}
+
+	@Nested
+	internal inner class ListAllTodosTest {
+
+		@BeforeEach
+		fun setup() {
+			repository.save(
+				TodoItem(
+					description = "Past due task",
+					status = TodoStatus.NOT_DONE,
+					creationDatetime = clockHolder.currentInstant.minusSeconds(7200),
+					dueDatetime = clockHolder.currentInstant.minusSeconds(3600),
+				),
+			)
+			repository.save(
+				TodoItem(
+					description = "Not due task",
+					status = TodoStatus.NOT_DONE,
+					creationDatetime = clockHolder.currentInstant.minusSeconds(7200),
+					dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
+				),
+			)
+			repository.save(
+				TodoItem(
+					description = "Done before due time task",
+					status = TodoStatus.DONE,
+					creationDatetime = clockHolder.currentInstant.minusSeconds(7200),
+					dueDatetime = clockHolder.currentInstant.plusSeconds(3600),
+				),
+			)
+		}
+
+		@Test
+		fun `given mixed items when listing not done then only not done returned`() {
+			val items = service.findAllOrOnlyDone(false)
+
+			assertThat(items).hasSize(1)
+			assertThat(items.first().status).isEqualTo(TodoStatus.NOT_DONE)
+		}
+
+		@Test
+		fun `given mixed items when listing all then all returned`() {
+			val items = service.findAllOrOnlyDone(true)
+			assertThat(items).hasSize(3)
+		}
+
+		@Test
+		fun `given listing all items when one is past due then it should be returned with updated status `() {
+			val items = service.findAllOrOnlyDone(true)
+			assertThat(items).hasSize(3)
+			assertThat(items).anyMatch { it.status == TodoStatus.PAST_DUE }
+		}
 	}
 
 	@Nested

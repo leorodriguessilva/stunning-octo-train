@@ -7,7 +7,6 @@ import com.service.todolist.model.TodoStatus
 import com.service.todolist.model.assertStillDoable
 import com.service.todolist.model.isNotDoneNowDue
 import com.service.todolist.repository.TodoItemRepository
-import org.springframework.data.domain.Sort
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -40,7 +39,7 @@ class TodoItemService(
 	}
 
 	@Transactional
-	fun updateDescription(id: Long, request: UpdateDescriptionRequest): TodoItem {
+	fun updateDescriptionById(id: Long, request: UpdateDescriptionRequest): TodoItem {
 		val item = getItemOrThrow(id)
 		item.assertStillDoable(clock)
 		item.description = request.description
@@ -48,7 +47,7 @@ class TodoItemService(
 	}
 
 	@Transactional
-	fun markDone(id: Long): TodoItem {
+	fun markDoneById(id: Long): TodoItem {
 		val now = Instant.now(clock)
 		val item = getItemOrThrow(id)
 		item.assertStillDoable(clock)
@@ -58,8 +57,7 @@ class TodoItemService(
 	}
 
 	@Transactional
-	fun markNotDone(id: Long): TodoItem {
-		updatePastDueTodos()
+	fun markNotDoneById(id: Long): TodoItem {
 		val item = getItemOrThrow(id)
 		item.assertStillDoable(clock)
 		item.status = TodoStatus.NOT_DONE
@@ -69,8 +67,7 @@ class TodoItemService(
 	}
 
 	@Transactional
-	fun getItem(id: Long): TodoItem {
-		updatePastDueTodos()
+	fun findById(id: Long): TodoItem {
 		val item = getItemOrThrow(id)
 		val isTodoNotDoneNowDue = item.isNotDoneNowDue(Instant.now(clock))
 		if (isTodoNotDoneNowDue) {
@@ -81,14 +78,13 @@ class TodoItemService(
 	}
 
 	@Transactional
-	fun listItems(includeAll: Boolean): List<TodoItem> {
+	fun findAllOrOnlyDone(includeAll: Boolean): List<TodoItem> {
 		updatePastDueTodos()
-		val sort = Sort.by("creationDatetime").ascending()
-		return if (includeAll) {
-			repository.findAll(sort)
+		return (if (includeAll) {
+			repository.findAll()
 		} else {
-			repository.findByStatus(TodoStatus.NOT_DONE, sort)
-		}
+			return repository.findByStatus(TodoStatus.NOT_DONE)
+		})
 	}
 
 	@Transactional
