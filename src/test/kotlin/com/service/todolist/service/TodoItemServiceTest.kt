@@ -2,11 +2,11 @@ package com.service.todolist.service
 
 import com.service.todolist.api.CreateTodoItemRequest
 import com.service.todolist.api.UpdateDescriptionRequest
+import com.service.todolist.config.ClockTestConfig
+import com.service.todolist.config.TestClockHolder
 import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
 import com.service.todolist.repository.TodoItemRepository
-import io.mockk.every
-import io.mockk.mockk
 import jakarta.persistence.EntityNotFoundException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -16,44 +16,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
-import org.springframework.context.annotation.Primary
 import org.springframework.data.domain.Sort
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 @DataJpaTest
-@Import(TodoItemService::class, TodoItemServiceTest.ClockTestConfig::class)
+@Import(TodoItemService::class, ClockTestConfig::class)
 class TodoItemServiceTest {
-
-	@TestConfiguration
-	class ClockTestConfig {
-		@Bean
-		@Primary
-		fun testClockHolder(): TestClockHolder = TestClockHolder(Instant.parse("2024-01-01T00:00:00Z"))
-
-		@Bean
-		@Primary
-		fun clock(clockHolder: TestClockHolder): Clock {
-			val clock = mockk<Clock>()
-			every { clock.instant() } answers { clockHolder.currentInstant }
-			every { clock.getZone() } returns ZoneOffset.UTC
-			every { clock.zone } returns ZoneOffset.UTC
-			every { clock.withZone(any()) } returns clock
-			return clock
-		}
-	}
-
-	class TestClockHolder(
-		var currentInstant: Instant,
-	) {
-		fun setInstant(newInstant: Instant) {
-			currentInstant = newInstant
-		}
-	}
 
 	@Autowired
 	private lateinit var service: TodoItemService

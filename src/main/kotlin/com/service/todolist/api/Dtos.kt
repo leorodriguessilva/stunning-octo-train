@@ -2,6 +2,7 @@ package com.service.todolist.api
 
 import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
+import jakarta.validation.constraints.Future
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import java.time.Instant
@@ -10,6 +11,7 @@ data class CreateTodoItemRequest(
 	@field:NotBlank
 	val description: String,
 	@field:NotNull
+	@field:Future
 	val dueDatetime: Instant,
 )
 

@@ -1,6 +1,8 @@
 package com.service.todolist.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.service.todolist.config.ClockTestConfig
+import com.service.todolist.config.TestClockHolder
 import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
 import com.service.todolist.service.PastDueItemException
@@ -14,6 +16,7 @@ import org.mockito.BDDMockito.given
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
@@ -22,6 +25,7 @@ import org.springframework.test.web.servlet.put
 import java.time.Instant
 
 @WebMvcTest(TodoItemController::class)
+@Import(ClockTestConfig::class)
 class TodoItemControllerTest {
 	@Autowired
 	private lateinit var mockMvc: MockMvc
@@ -29,12 +33,15 @@ class TodoItemControllerTest {
 	@Autowired
 	private lateinit var objectMapper: ObjectMapper
 
+	@Autowired
+	private lateinit var clockHolder: TestClockHolder
+
 	@MockBean
 	private lateinit var service: TodoItemService
 
 	@Test
 	fun `given create request when posting item then returns payload`() {
-		val dueDatetime = Instant.parse("2024-01-01T12:00:00Z")
+		val dueDatetime = clockHolder.currentInstant.plusSeconds(10000)
 		val request = CreateTodoItemRequest(
 			description = "Write documentation",
 			dueDatetime = dueDatetime,
@@ -43,7 +50,7 @@ class TodoItemControllerTest {
 			id = 1,
 			description = request.description,
 			status = TodoStatus.NOT_DONE,
-			creationDatetime = Instant.parse("2024-01-01T10:00:00Z"),
+			creationDatetime = clockHolder.currentInstant,
 			dueDatetime = dueDatetime,
 			doneDatetime = null,
 		)
@@ -336,7 +343,7 @@ class TodoItemControllerTest {
 		fun `given unexpected error when posting item then returns server error`() {
 			val request = CreateTodoItemRequest(
 				description = "Write documentation",
-				dueDatetime = Instant.parse("2024-01-01T12:00:00Z"),
+				dueDatetime = clockHolder.currentInstant.plusSeconds(100),
 			)
 			given(service.createItem(request))
 				.willThrow(IllegalStateException("Unexpected error"))
