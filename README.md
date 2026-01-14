@@ -13,7 +13,7 @@ This service exposes a REST API for managing to-do items with descriptions, due 
    - Current implementation only allow due dates in the future.
    - However, i see an use case for creating todo items for historical tracking.
 
-## Improvements
+## Future Improvements
  - Add indexes for dueDatetime and status fields for better query performance in the cronjob.
  - Add a batch limit to the mark as past due cronjob to avoid long-running transactions.
  - Add pagination to the list items endpoint.
