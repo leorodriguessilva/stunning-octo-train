@@ -15,14 +15,25 @@ Past-due items are immutable via the API.
 
 ## How-To Guide
 
+### Prerequisites
+- Java 21 or higher
+
+### Installing Java via asdf tool
+If you are using [asdf](https://asdf-vm.com/) to manage your development environment, you can set up the required Java 
+version by running in the root directory of the project:
+
+```bash
+asdf install
+```
+
 ### Build the Service
 ```bash
-gradle clean build
+./gradlew clean build
 ```
 
 ### Run the Automatic Tests
 ```bash
-gradle test
+./gradlew test
 ```
 
 ### Run Locally with Docker
