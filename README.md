@@ -1,9 +1,25 @@
 # Todo List Service
 
 ## Service Description
-This service exposes a REST API for managing to-do items with descriptions, due dates, and status transitions. Items 
-automatically become **past due** when their `due_datetime` has passed and they are still marked as **not done**. 
-Past-due items are immutable via the API. 
+This service exposes a REST API for managing to-do items with descriptions, due dates, and status transitions.
+
+## Blurry Requirements Addressed
+ - When a todo item is set to done, is not clear if it should become immutable after due date as well.
+   - Current implementation allows the todo item to be marked to not-done.
+ - Is not clear if a done todo item is allowed to have its description updated
+   - Current implementation allows updating the description of a done todo item.
+   - What would feel natural is to not allow updating the description of a done item after the due date is in the past.
+ - The due date in the todo item creation, can be already in the past?
+   - Current implementation only allow due dates in the future.
+   - However, i see an use case for creating todo items for historical tracking.
+
+## Improvements
+ - Add indexes for dueDatetime and status fields for better query performance in the cronjob.
+ - Add a batch limit to the mark as past due cronjob to avoid long-running transactions.
+ - Add pagination to the list items endpoint.
+ - Add Swagger/OpenAPI documentation for better API discoverability.
+ - To prepare for scaling, make todo items partitionable by user/category/country.
+ - To prepare for scaling, a cache layer (e.g., Redis or using app server memory) can be added for the listing and find by id endpoints.
 
 ## Tech Stack
 - **Language:** Kotlin (JVM)
