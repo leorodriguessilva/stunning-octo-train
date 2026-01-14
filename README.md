@@ -49,7 +49,7 @@ asdf install
 
 ### Run the Automatic Tests
 ```bash
-./gradlew test
+./gradlew test --rerun-tasks
 ```
 
 ### Run Locally with Docker
