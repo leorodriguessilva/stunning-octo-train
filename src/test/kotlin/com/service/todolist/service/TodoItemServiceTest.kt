@@ -3,7 +3,7 @@ package com.service.todolist.service
 import com.service.todolist.api.CreateTodoItemRequest
 import com.service.todolist.api.UpdateDescriptionRequest
 import com.service.todolist.config.ClockTestConfig
-import com.service.todolist.config.TestClockHolder
+import com.service.todolist.config.TestClockProvider
 import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
 import com.service.todolist.repository.TodoItemRepository
@@ -30,7 +30,7 @@ class TodoItemServiceTest {
 	private lateinit var repository: TodoItemRepository
 
 	@Autowired
-	private lateinit var clockHolder: TestClockHolder
+	private lateinit var clockHolder: TestClockProvider
 
 
 	@AfterEach

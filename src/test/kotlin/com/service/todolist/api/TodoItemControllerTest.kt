@@ -1,8 +1,10 @@
 package com.service.todolist.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.service.todolist.config.ClockConfig
 import com.service.todolist.config.ClockTestConfig
-import com.service.todolist.config.TestClockHolder
+import com.service.todolist.config.TestClockProvider
+import com.service.todolist.config.ValidationConfig
 import com.service.todolist.model.TodoItem
 import com.service.todolist.model.TodoStatus
 import com.service.todolist.service.PastDueItemException
@@ -25,7 +27,7 @@ import org.springframework.test.web.servlet.put
 import java.time.Instant
 
 @WebMvcTest(TodoItemController::class)
-@Import(ClockTestConfig::class)
+@Import(ValidationConfig::class, ClockTestConfig::class)
 class TodoItemControllerTest {
 	@Autowired
 	private lateinit var mockMvc: MockMvc
@@ -34,14 +36,14 @@ class TodoItemControllerTest {
 	private lateinit var objectMapper: ObjectMapper
 
 	@Autowired
-	private lateinit var clockHolder: TestClockHolder
+	private lateinit var fixedClock: TestClockProvider
 
 	@MockBean
 	private lateinit var service: TodoItemService
 
 	@Test
 	fun `given create request when posting item then returns payload`() {
-		val dueDatetime = clockHolder.currentInstant.plusSeconds(10000)
+		val dueDatetime = fixedClock.currentInstant.plusSeconds(10000)
 		val request = CreateTodoItemRequest(
 			description = "Write documentation",
 			dueDatetime = dueDatetime,
@@ -50,7 +52,7 @@ class TodoItemControllerTest {
 			id = 1,
 			description = request.description,
 			status = TodoStatus.NOT_DONE,
-			creationDatetime = clockHolder.currentInstant,
+			creationDatetime = fixedClock.currentInstant,
 			dueDatetime = dueDatetime,
 			doneDatetime = null,
 		)
@@ -343,7 +345,7 @@ class TodoItemControllerTest {
 		fun `given unexpected error when posting item then returns server error`() {
 			val request = CreateTodoItemRequest(
 				description = "Write documentation",
-				dueDatetime = clockHolder.currentInstant.plusSeconds(100),
+				dueDatetime = fixedClock.currentInstant.plusSeconds(100),
 			)
 			given(service.createItem(request))
 				.willThrow(IllegalStateException("Unexpected error"))
