@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 
 @RestControllerAdvice
 class ApiExceptionHandler {
+
 	@ExceptionHandler(PastDueItemException::class)
 	fun handlePastDue(ex: PastDueItemException): ResponseEntity<Map<String, String>> {
 		return ResponseEntity.status(HttpStatus.CONFLICT)

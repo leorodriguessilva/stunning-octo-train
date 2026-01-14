@@ -56,6 +56,6 @@ fun TodoItem.isNotDoneNowDue(now: Instant) = this.status == TodoStatus.NOT_DONE 
 fun TodoItem.assertStillDoable(clock: Clock) {
 	val isTodoNotDoneNowDue = isNotDoneNowDue(Instant.now(clock)) || status == TodoStatus.PAST_DUE
 	if (isTodoNotDoneNowDue) {
-		throw PastDueItemException("Cannot modify past due item with id ${this.id}")
+		throw PastDueItemException("Cannot modify past due item; id=${this.id}")
 	}
 }
