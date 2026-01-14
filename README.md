@@ -35,7 +35,51 @@ The service will be available at `http://localhost:8080`.
 ## API Overview
 - `POST /items` - Create a new item
 - `PUT /items/{id}/description` - Update an item's description
-- `POST /items/{id}/done` - Mark an item as done
-- `POST /items/{id}/not-done` - Mark an item as not done
+- `PUT /items/{id}/done` - Mark an item as done
+- `PUT /items/{id}/not-done` - Mark an item as not done
 - `GET /items/{id}` - Get a single item
 - `GET /items?includeAll=true` - Get all items (default is only not done)
+
+### Create an item
+```bash
+curl -X POST http://localhost:8080/items \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Write documentation",
+    "dueDatetime": "2026-01-25T00:00:00Z"
+  }'
+```
+
+### Update an item's description
+```bash
+curl -X PUT http://localhost:8080/items/1/description \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Update docs"
+  }'
+```
+
+### Mark an item done
+```bash
+curl -X PUT http://localhost:8080/items/1/done
+```
+
+### Mark an item not done
+```bash
+curl -X PUT http://localhost:8080/items/1/not-done
+```
+
+### Get an item by id
+```bash
+curl http://localhost:8080/items/1
+```
+
+### List items
+```bash
+curl http://localhost:8080/items
+```
+
+### List all items (including done/past due)
+```bash
+curl http://localhost:8080/items?includeAll=true
+```
